@@ -195,6 +195,8 @@ public class FabricWorldEdit implements ModInitializer {
         debouncer = new InteractionDebouncer(platform);
 
         WorldEdit.getInstance().getPlatformManager().register(platform);
+        WorldEdit.getInstance().getMaskFactory().register(new FabricInventoryMaskParser(WorldEdit.getInstance()));
+        com.sk89q.worldedit.fabric.tools.BuilderParsers.register(WorldEdit.getInstance());
 
         config = new FabricConfiguration(this);
         this.provider = getInitialPermissionsProvider();
@@ -257,6 +259,7 @@ public class FabricWorldEdit implements ModInitializer {
             return;
         }
 
+        com.sk89q.worldedit.fabric.tools.BuilderCommands.register(manager.getPlatformCommandManager().getCommandManager());
         List<Command> commands = manager.getPlatformCommandManager().getCommandManager()
             .getAllCommands().toList();
         for (Command command : commands) {
@@ -639,6 +642,7 @@ public class FabricWorldEdit implements ModInitializer {
         debouncer.clearInteraction(adaptPlayer(handler.player));
         EditModeRegistry.clear(handler.player.getUUID());
         FabricPlayer.clearMeta(handler.player.getUUID());
+        com.sk89q.worldedit.fabric.tools.BuilderCommands.forget(handler.player.getUUID());
 
         WorldEdit.getInstance().getEventBus()
             .post(new SessionIdleEvent(new FabricPlayer.SessionKeyImpl(handler.player)));

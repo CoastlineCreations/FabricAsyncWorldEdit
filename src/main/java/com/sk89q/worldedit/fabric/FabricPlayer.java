@@ -37,6 +37,7 @@ import com.sk89q.worldedit.util.formatting.component.TextUtils;
 import com.sk89q.worldedit.util.formatting.text.Component;
 import com.sk89q.worldedit.util.formatting.text.serializer.gson.GsonComponentSerializer;
 import com.sk89q.worldedit.world.World;
+import com.sk89q.worldedit.world.block.BaseBlock;
 import com.sk89q.worldedit.world.block.BlockStateHolder;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -45,6 +46,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.BlockItem;
 
 import java.util.Locale;
 import java.util.Map;
@@ -97,6 +99,22 @@ public class FabricPlayer extends AbstractPlayerActor {
     public BaseItemStack getItemInHand(HandSide handSide) {
         ItemStack is = this.player.getItemInHand(handSide == HandSide.MAIN_HAND ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
         return FabricAdapter.adapt(is);
+    }
+
+    @Override
+    public BaseBlock getBlockInHand(HandSide handSide) {
+        ItemStack stack = this.player.getItemInHand(
+            handSide == HandSide.MAIN_HAND ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+        return blockInHand(stack);
+    }
+
+    static BaseBlock blockInHand(ItemStack stack) {
+        // Modded block items can have a different registry ID from their block.
+        // Resolve the native block directly rather than guessing from the item ID.
+        if (!stack.isEmpty() && stack.getItem() instanceof BlockItem item) {
+            return FabricAdapter.adapt(item.getBlock().defaultBlockState()).toBaseBlock();
+        }
+        return com.sk89q.worldedit.world.block.BlockTypes.AIR.getDefaultState().toBaseBlock();
     }
 
     @Override
@@ -219,7 +237,7 @@ public class FabricPlayer extends AbstractPlayerActor {
 
     @Override
     public BlockBag getInventoryBlockBag() {
-        return null;
+        return new FabricPlayerBlockBag(player.getInventory(), player.level().getServer());
     }
 
     @Override

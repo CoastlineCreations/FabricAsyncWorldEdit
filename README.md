@@ -6,7 +6,33 @@ This is an independent Fabric port of the FAWE platform layer, not a fork of the
 upstream Bukkit/Paper plugin. It provides the Fabric entrypoint, world/player
 adapters, chunk access, queue/task integration and the command bridge.
 
+## Inventory patterns
+
+Use inventory references wherever a command accepts a block pattern or mask:
+
+| Reference | Blocks used |
+|---|---|
+| `slot1`–`slot9` | Hotbar slots, left to right |
+| `slot10`–`slot36` | Main inventory, top to bottom and left to right |
+| `hand` / `offhand` | Block held in the main hand / offhand |
+| `#hotbar` | All block items in the nine hotbar slots |
+
+As a replacement pattern, `#hotbar` randomly mixes the hotbar blocks. As a source
+mask, it matches those block types. Empty slots and non-block items are skipped;
+at least one hotbar slot must contain a block item. Inventory references do not
+consume items unless inventory-backed editing is enabled in the configuration.
+
+```text
+//replace stone slot9
+//replace stone slot36
+//replace stone #hotbar
+//replace #hotbar glass
+```
+
 ## Build
+
+Additional terrain, material replacement, waxing, WFC, masks and patterns are
+documented in [BUILDER_TOOLS.md](BUILDER_TOOLS.md).
 
 Java 25 is required for the compiler toolchain; Gradle itself can run on Java 21.
 

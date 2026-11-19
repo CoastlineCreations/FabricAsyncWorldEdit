@@ -224,7 +224,24 @@ public final class FabricAdapter {
     }
 
     public static ItemType adapt(Item item) {
-        return ItemTypes.get(FabricWorldEdit.getRegistry(Registries.ITEM).getKey(item).toString());
+        ItemType type = ItemTypes.get(FabricWorldEdit.getRegistry(Registries.ITEM).getKey(item).toString());
+        if (type != null) {
+            BlockType block = item instanceof net.minecraft.world.item.BlockItem blockItem
+                ? adapt(blockItem.getBlock()) : null;
+            if (type.getBlockType() != block) {
+                // Keep the item ID and components while exposing the actual native
+                // block to FAWE's slot parser, even when the two IDs differ.
+                ItemType mapped = new ItemType(type.id()) {
+                    @Override
+                    public BlockType getBlockType() {
+                        return block;
+                    }
+                };
+                mapped.setInternalId(type.getInternalId());
+                return mapped;
+            }
+        }
+        return type;
     }
 
     /**
@@ -248,6 +265,11 @@ public final class FabricAdapter {
     }
 
     public static BaseItemStack adapt(ItemStack itemStack) {
+        // Most pattern lookups only need the type. Avoid serializing an empty
+        // component patch (and requiring serialization registries) for plain blocks.
+        if (itemStack.getComponentsPatch().isEmpty()) {
+            return new BaseItemStack(adapt(itemStack.getItem()), itemStack.getCount());
+        }
         CompoundTag tag = (CompoundTag) COMPONENTS_CODEC.encodeStart(
             FabricWorldEdit.registryAccess().createSerializationContext(NbtOps.INSTANCE),
             itemStack.getComponentsPatch()

@@ -69,6 +69,14 @@ dependencies {
     runtimeOnly "org.enginehub.worldeditcui-protocol:worldeditcui-protocol-common-mc26.1:4.0.3"
     runtimeOnly "org.enginehub.worldeditcui-protocol:worldeditcui-protocol-fabric-mc26.1:4.0.3"
     runtimeOnly files(rootProject.file('libs/WorldEditCUI-26.1.1+01.jar'))
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.13.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.13.4'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    workingDir = layout.buildDirectory.get().asFile
 }
 
 processResources {

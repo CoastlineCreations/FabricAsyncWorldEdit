@@ -135,8 +135,11 @@ class FabricDataFixer implements com.sk89q.worldedit.world.DataFixer {
 
     private String nbtToState(net.minecraft.nbt.CompoundTag tagCompound) {
         StringBuilder sb = new StringBuilder();
-        sb.append(tagCompound.getString("Name").get());
-        tagCompound.getCompound("Properties").ifPresent(props -> {
+        // Since 26.3, DFU writes block states using id/properties instead of
+        // Name/Properties. Older targets still return the legacy field names.
+        sb.append(tagCompound.getString("id").or(() -> tagCompound.getString("Name"))
+            .orElseThrow(() -> new IllegalArgumentException("Block state has no id or Name: " + tagCompound)));
+        tagCompound.getCompound("properties").or(() -> tagCompound.getCompound("Properties")).ifPresent(props -> {
             sb.append('[');
             sb.append(props.keySet().stream().map(k -> k + "=" + props.getString(k).get().replace("\"", "")).collect(Collectors.joining(",")));
             sb.append(']');
