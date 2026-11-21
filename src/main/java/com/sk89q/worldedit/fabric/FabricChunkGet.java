@@ -39,6 +39,7 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -507,6 +508,17 @@ public final class FabricChunkGet extends CharGetBlocks {
             LevelChunkSection section, List<Heightmap> heightmaps, PendingBlock p) {
         BlockPos pos = p.pos();
         net.minecraft.world.level.block.state.BlockState newState = p.nmsState();
+        if (newState.hasBlockEntity()) {
+            // Several distinct blocks can share a BlockEntityType. Let the chunk
+            // decide whether to replace or retain the instance, update its cached
+            // state and register its ticker before applying the destination NBT.
+            if (chunk.setBlockState(pos, newState, Block.UPDATE_SKIP_ALL_SIDEEFFECTS) == null) {
+                // Vanilla short-circuits identical states. Restore a missing entity
+                // even when the edit contains only a block ID and no tile payload.
+                chunk.getBlockEntity(pos, LevelChunk.EntityCreationType.IMMEDIATE);
+            }
+            return;
+        }
         boolean wasEmpty = section.hasOnlyAir();
         net.minecraft.world.level.block.state.BlockState old = section.setBlockState(
                 pos.getX() & 15, pos.getY() & 15, pos.getZ() & 15, newState);
@@ -526,17 +538,7 @@ public final class FabricChunkGet extends CharGetBlocks {
             // as the reference adapter does: flag the chunk light after a light change
             chunk.setLightCorrect(true);
         }
-        if (newState.hasBlockEntity()) {
-            BlockEntity existing = chunk.getBlockEntity(pos, LevelChunk.EntityCreationType.CHECK);
-            if (existing == null || !existing.isValidBlockState(newState)) {
-                // hasBlockEntity() implies an EntityBlock (vanilla makes the same cast)
-                BlockEntity created = ((net.minecraft.world.level.block.EntityBlock) newState.getBlock())
-                        .newBlockEntity(pos, newState);
-                if (created != null) {
-                    chunk.setBlockEntity(created);
-                }
-            }
-        } else if (old != null && old.hasBlockEntity()) {
+        if (old != null && old.hasBlockEntity()) {
             // a block entity replaced by a plain block (chest to stone): clear the shared
             // inventory first; tile targets skip this, the NBT applied later is authoritative
             if (!p.tile()) {
@@ -578,8 +580,14 @@ public final class FabricChunkGet extends CharGetBlocks {
             var nativeTag = NBTConverter.toNative(pending.tag().linTag());
             // Collector records what loadWithComponents dropped and why (DISCARDING is silent)
             var problems = new ProblemReporter.Collector();
-            blockEntity.loadWithComponents(TagValueInput.create(
-                    problems, level.registryAccess(), nativeTag));
+            try {
+                blockEntity.loadWithComponents(TagValueInput.create(
+                        problems, level.registryAccess(), nativeTag));
+            } catch (RuntimeException failure) {
+                log.error("[FAWE-TILE] Failed to load block entity data for {} at {}",
+                        blockEntity.getBlockState(), pending.pos(), failure);
+                continue;
+            }
             problems.forEach((path, problem) ->
                     log.warn("[FAWE-TILE] {} 加载问题: {} — {}", pending.pos(), path, problem.description()));
             blockEntity.setChanged();
