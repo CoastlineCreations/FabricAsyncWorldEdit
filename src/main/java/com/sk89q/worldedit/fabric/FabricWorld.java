@@ -22,6 +22,7 @@ package com.sk89q.worldedit.fabric;
 import com.fastasyncworldedit.core.nbt.FaweCompoundTag;
 import com.fastasyncworldedit.core.queue.IChunkGet;
 import com.fastasyncworldedit.core.queue.implementation.packet.ChunkPacket;
+import com.fastasyncworldedit.core.wrappers.WorldWrapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -715,15 +716,20 @@ public class FabricWorld extends AbstractWorld {
 
     @Override
     public boolean equals(Object o) {
-        if ((o instanceof FabricWorld other)) {
-            Level otherWorld = other.worldRef.get();
-            Level thisWorld = worldRef.get();
-            return otherWorld != null && otherWorld.equals(thisWorld);
-        } else if (o instanceof com.sk89q.worldedit.world.World) {
-            return ((com.sk89q.worldedit.world.World) o).getName().equals(getName());
-        } else {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof com.sk89q.worldedit.world.World world)) {
             return false;
         }
+        // FAWE commands may wrap both sides of the comparison. Multiple dimensions
+        // can share the same save name, so compare their underlying Fabric levels.
+        var unwrapped = WorldWrapper.unwrap(world);
+        if (unwrapped instanceof FabricWorld other) {
+            Level level = worldRef.get();
+            return level != null && level == other.worldRef.get();
+        }
+        return unwrapped != null && unwrapped.getName().equals(getName());
     }
 
     @Override
